@@ -36,3 +36,26 @@ This repository contains a complete, real-world-style inference platform using:
 - Easy one-command deploy and teardown
 
 ## Repository Structure
+
+h100-inference-control-plane/
+├── kubernetes/          # Kubernetes manifests
+│   ├── base/
+│   └── overlays/
+├── monitoring/          # VictoriaMetrics + Grafana
+│   └── dashboards/
+├── scripts/             # Deployment & utility scripts
+│   ├── deploy.sh
+│   ├── monitor.sh
+│   └── teardown.sh
+├── configs/             # vLLM and system configs
+├── docs/                # Architecture diagrams & notes
+└── README.md
+
+## Quick Start
+
+```bash
+# Deploy the full stack
+./scripts/deploy.sh
+
+# Port-forward Grafana
+kubectl port-forward svc/grafana 3000:3000
