@@ -37,6 +37,7 @@ This repository contains a complete, real-world-style inference platform using:
 
 ## Repository Structure
 
+```bash
 h100-inference-control-plane/
 ├── kubernetes/          # Kubernetes manifests
 │   ├── base/
@@ -50,10 +51,11 @@ h100-inference-control-plane/
 ├── configs/             # vLLM and system configs
 ├── docs/                # Architecture diagrams & notes
 └── README.md
+```bash
 
 ## Quick Start
 
-```bash
+
 # Deploy the full stack
 ./scripts/deploy.sh
 
