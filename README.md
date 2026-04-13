@@ -43,21 +43,38 @@ h100-inference-control-plane/
 │   ├── base/
 │   └── overlays/
 ├── monitoring/          # VictoriaMetrics + Grafana
-│   └── dashboards/
+│   ├── dashboards/
+│   ├── push_metrics.sh  # Script to push vLLM metrics
+│   └── run_victoria.sh  # Script to run VictoriaMetrics locally
 ├── scripts/             # Deployment & utility scripts
-│   ├── deploy.sh
-│   ├── monitor.sh
-│   └── teardown.sh
+│   └── deploy.sh
+├── app/                 # FastAPI application code
 ├── configs/             # vLLM and system configs
 ├── docs/                # Architecture diagrams & notes
 └── README.md
-```bash
+```
 
 ## Quick Start
 
-
-# Deploy the full stack
+### 1. Deploy the full stack
+```bash
 ./scripts/deploy.sh
+```
 
-# Port-forward Grafana
+### 2. Set up Monitoring
+To visualize metrics, first start VictoriaMetrics:
+```bash
+./monitoring/run_victoria.sh
+```
+
+Then, in a separate terminal, start pushing metrics from the vLLM engine:
+```bash
+./monitoring/push_metrics.sh
+```
+
+### 3. Access Dashboards
+Port-forward Grafana to access the pre-configured dashboards:
+```bash
 kubectl port-forward svc/grafana 3000:3000
+```
+Open `http://localhost:3000` in your browser.
