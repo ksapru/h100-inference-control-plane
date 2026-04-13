@@ -10,10 +10,11 @@ LATENCY = prom.Histogram('request_latency_seconds', 'Request latency in seconds'
 
 print("Loading Llama-3.2-1B...")
 llm = LLM(
-    model="meta-llama/Llama-3.2-1B",
-    tensor_parallel_size=1,  # safer default
-    dtype="bfloat16",
-    gpu_memory_utilization=0.85
+    model="mistralai/Mistral-7B-Instruct-v0.1",
+    tensor_parallel_size=1,
+    dtype="float16",
+    gpu_memory_utilization=0.90,
+    max_model_len=4096
 )
 
 @app.post("/generate")
