@@ -15,10 +15,6 @@ helm repo add victoriametrics https://victoriametrics.github.io/helm-charts/
 helm repo add grafana https://grafana.github.io/helm-charts/
 helm repo update
 
-echo "Installing NVIDIA GPU Operator"
-helm install --wait gpu-operator nvidia/gpu-operator \
-  --namespace gpu-operator --create-namespace
-
 echo "Installing VictoriaMetrics"
 helm install vm victoriametrics/victoria-metrics-single --namespace monitoring --create-namespace
 
