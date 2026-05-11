@@ -4,7 +4,7 @@
 
 This repository provides a high-performance inference stack designed for scaling modern AI workloads, featuring vLLM, VictoriaMetrics, and automated deployment pipelines.
 
-## 🚀 Current Status: Functional Core
+## Current Status: Functional Core
 The platform currently features a fully functional **FastAPI + vLLM** inference core with integrated observability.
 
 - [x] **Inference Engine**: vLLM integration with Mistral-7B-Instruct.
@@ -13,7 +13,7 @@ The platform currently features a fully functional **FastAPI + vLLM** inference 
 - [x] **Automation**: End-to-end "one-command" local deployment and load testing.
 - [ ] **Kubernetes**: Helm-based monitoring setup (Functional); vLLM K8s manifests (In Progress).
 
-## 🛠 Tech Stack
+## Tech Stack
 
 - **Inference Engine**: [vLLM](https://github.com/vllm-project/vllm) (PagedAttention + Continuous Batching)
 - **API Framework**: [FastAPI](https://fastapi.tiangolo.com/)
@@ -22,7 +22,7 @@ The platform currently features a fully functional **FastAPI + vLLM** inference 
 - **Load Testing**: [hey](https://github.com/rakyll/hey)
 - **Hardware Target**: NVIDIA H100 SXM
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```bash
 h100-inference-control-plane/
@@ -40,7 +40,7 @@ h100-inference-control-plane/
 └── docs/                # Architecture diagrams & technical notes
 ```
 
-## ⚡ Quick Start (Local Demo)
+## Quick Start (Local Demo)
 
 The fastest way to see the platform in action is using the automated setup script. This script clones the environment, installs dependencies, starts the inference server, and runs a load test.
 
@@ -68,7 +68,7 @@ If you prefer to run components individually:
    ./monitoring/push_metrics.sh
    ```
 
-## 📊 Metrics & Observability
+## Metrics & Observability
 
 The platform exports detailed metrics for monitoring LLM performance:
 
@@ -80,12 +80,5 @@ The platform exports detailed metrics for monitoring LLM performance:
 
 Useful queries can be found in [monitoring/queries.md](monitoring/queries.md).
 
-## 🚢 Kubernetes Deployment
-
-For production-like environments, the platform uses Helm for monitoring and Kustomize for the inference service.
-
-```bash
-./scripts/deploy.sh
-```
 
 *Note: Ensure you have a functional Kubernetes cluster with the NVIDIA GPU Operator installed.*
