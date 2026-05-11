@@ -1,80 +1,91 @@
 # h100-inference-control-plane
 
-**Production-grade Kubernetes GPU Inference Platform** built on H100 GPUs.
+**Production-grade Kubernetes GPU Inference Platform** built on NVIDIA H100 GPUs.
 
-A clean, observable, and scalable inference stack designed for learning modern AI inference infrastructure.
+This repository provides a high-performance inference stack designed for scaling modern AI workloads, featuring vLLM, VictoriaMetrics, and automated deployment pipelines.
 
-## Overview
+## 🚀 Current Status: Functional Core
+The platform currently features a fully functional **FastAPI + vLLM** inference core with integrated observability.
 
-This repository contains a complete, real-world-style inference platform using:
-- **Kubernetes** (k3s) + **NVIDIA GPU Operator**
-- **vLLM** as the high-performance inference engine (with continuous batching + PagedAttention)
-- **VictoriaMetrics** + **Grafana** for observability
-- Targeted at **4x or 8x H100** nodes
+- [x] **Inference Engine**: vLLM integration with Mistral-7B-Instruct.
+- [x] **API Layer**: FastAPI with asynchronous request handling.
+- [x] **Observability**: Custom Prometheus metrics (TTFT, Latency, Throughput, Token Counts).
+- [x] **Automation**: End-to-end "one-command" local deployment and load testing.
+- [ ] **Kubernetes**: Helm-based monitoring setup (Functional); vLLM K8s manifests (In Progress).
 
-## Goals
+## 🛠 Tech Stack
 
-- Learn modern GPU inference infrastructure patterns used by hyperscalers and AI companies
-- Practice Kubernetes-native GPU workloads
-- Build production-like observability for inference services
-- Understand continuous batching, KV cache management, and cost/performance tradeoffs
-
-## Tech Stack
-
-- **Orchestration**: Kubernetes (k3s) + NVIDIA GPU Operator
-- **Inference Engine**: vLLM (with tensor parallelism)
-- **API Layer**: FastAPI
-- **Monitoring**: VictoriaMetrics + Prometheus + Grafana
+- **Inference Engine**: [vLLM](https://github.com/vllm-project/vllm) (PagedAttention + Continuous Batching)
+- **API Framework**: [FastAPI](https://fastapi.tiangolo.com/)
+- **Monitoring**: [VictoriaMetrics](https://victoriametrics.com/) (Prometheus-compatible)
+- **Visualization**: [Grafana](https://grafana.com/)
+- **Load Testing**: [hey](https://github.com/rakyll/hey)
 - **Hardware Target**: NVIDIA H100 SXM
 
-## Features
-
-- Multi-GPU inference with tensor parallelism
-- Continuous / dynamic batching
-- Real-time metrics (TTFT, TPOT, throughput, tokens/sec, GPU utilization, queue depth)
-- Cost per token tracking
-- Easy one-command deploy and teardown
-
-## Repository Structure
+## 📂 Repository Structure
 
 ```bash
 h100-inference-control-plane/
-├── kubernetes/          # Kubernetes manifests
-│   ├── base/
-│   └── overlays/
-├── monitoring/          # VictoriaMetrics + Grafana
-│   ├── dashboards/
-│   ├── push_metrics.sh  # Script to push vLLM metrics
-│   └── run_victoria.sh  # Script to run VictoriaMetrics locally
-├── scripts/             # Deployment & utility scripts
-│   └── deploy.sh
-├── app/                 # FastAPI application code
-├── configs/             # vLLM and system configs
-├── docs/                # Architecture diagrams & notes
-└── README.md
+├── app/                 # FastAPI application (vLLM integration)
+│   └── app.py           # Core inference logic & Prometheus metrics
+├── scripts/             # Deployment & automation scripts
+│   ├── run_all.sh       # Automated local E2E setup & load test
+│   └── deploy.sh        # Kubernetes/Helm deployment script
+├── monitoring/          # Observability configuration
+│   ├── push_metrics.sh  # Sidecar script for metrics ingestion
+│   ├── queries.md       # Pre-built PromQL queries for dashboards
+│   └── run_victoria.sh  # Local VictoriaMetrics runner
+├── kubernetes/          # K8s manifests (Base & Overlays)
+├── configs/             # Model and system configurations
+└── docs/                # Architecture diagrams & technical notes
 ```
 
-## Quick Start
+## ⚡ Quick Start (Local Demo)
 
-### 1. Deploy the full stack
+The fastest way to see the platform in action is using the automated setup script. This script clones the environment, installs dependencies, starts the inference server, and runs a load test.
+
+```bash
+# Run the full end-to-end automated demo
+./scripts/run_all.sh
+```
+
+### Manual Components
+
+If you prefer to run components individually:
+
+1. **Start the Inference Server**:
+   ```bash
+   uvicorn app.app:app --host 0.0.0.0 --port 8000
+   ```
+
+2. **Launch VictoriaMetrics**:
+   ```bash
+   ./monitoring/run_victoria.sh
+   ```
+
+3. **Start Metrics Ingestion**:
+   ```bash
+   ./monitoring/push_metrics.sh
+   ```
+
+## 📊 Metrics & Observability
+
+The platform exports detailed metrics for monitoring LLM performance:
+
+- `requests_total`: Total inference requests.
+- `request_latency_seconds`: Histogram of end-to-end request latency.
+- `inflight_requests`: Number of requests currently being processed.
+- `generated_tokens`: Histogram of tokens generated per request.
+- `prompt_length_chars`: Distribution of input prompt sizes.
+
+Useful queries can be found in [monitoring/queries.md](monitoring/queries.md).
+
+## 🚢 Kubernetes Deployment
+
+For production-like environments, the platform uses Helm for monitoring and Kustomize for the inference service.
+
 ```bash
 ./scripts/deploy.sh
 ```
 
-### 2. Set up Monitoring
-To visualize metrics, first start VictoriaMetrics:
-```bash
-./monitoring/run_victoria.sh
-```
-
-Then, in a separate terminal, start pushing metrics from the vLLM engine:
-```bash
-./monitoring/push_metrics.sh
-```
-
-### 3. Access Dashboards
-Port-forward Grafana to access the pre-configured dashboards:
-```bash
-kubectl port-forward svc/grafana 3000:3000
-```
-Open `http://localhost:3000` in your browser.
+*Note: Ensure you have a functional Kubernetes cluster with the NVIDIA GPU Operator installed.*
