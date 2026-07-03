@@ -53,7 +53,7 @@ sleep 2
 
 echo "===== STEP 9: Run load test ====="
 
-hey -n 30 -c 3 -m POST \
+hey -n 1000 -c 64 -m POST \
   -H "Content-Type: application/json" \
   -d '{"prompt":"Explain GPUs simply"}' \
   http://localhost:8000/generate > results.txt

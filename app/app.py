@@ -1,8 +1,11 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import Response, JSONResponse
-from vllm import LLM, SamplingParams
+from vllm import SamplingParams
+from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.engine.async_llm_engine import AsyncLLMEngine
 import time
 import prometheus_client as prom
+import uuid
 
 app = FastAPI(title="H100 Inference Control Plane")
 
@@ -66,14 +69,15 @@ TOKENS_PER_SECOND_HIST = prom.Histogram(
     buckets=(5, 10, 20, 50, 100, 150, 200)
 )
 
-print("Loading Mistral-7B...")
-llm = LLM(
-    model="mistralai/Mistral-7B-Instruct-v0.1",
+print("Loading Qwen3.6-35B-A3B (FP8 Quantized)...")
+engine_args = AsyncEngineArgs(
+    model="Qwen/Qwen3.6-35B-A3B-FP8",
+    quantization="fp8",
     tensor_parallel_size=1,
-    dtype="float16",
     gpu_memory_utilization=0.90,
     max_model_len=4096
 )
+engine = AsyncLLMEngine.from_engine_args(engine_args)
 
 print("Model loaded")
 
@@ -94,21 +98,26 @@ async def generate(request: Request):
             max_tokens=512
         )
 
-        outputs = llm.generate(prompt, sampling_params)
+        request_id = uuid.uuid4().hex
+        results_generator = engine.generate(prompt, sampling_params, request_id)
+
+        final_output = None
+        async for request_output in results_generator:
+            final_output = request_output
 
         latency = time.time() - start
         LATENCY.observe(latency)
 
-        generated_text = outputs[0].outputs[0].text
+        generated_text = final_output.outputs[0].text
 
         # Observe accurate token metrics using vLLM token IDs
-        prompt_tokens = len(outputs[0].prompt_token_ids)
-        completion_tokens = len(outputs[0].outputs[0].token_ids)
+        prompt_tokens = len(final_output.prompt_token_ids)
+        completion_tokens = len(final_output.outputs[0].token_ids)
         PROMPT_TOKENS.observe(prompt_tokens)
         COMPLETION_TOKENS.observe(completion_tokens)
 
         # Observe performance metrics (TTFT, TPOT, TPS) using vLLM RequestMetrics if available
-        vllm_metrics = getattr(outputs[0], "metrics", None)
+        vllm_metrics = getattr(final_output, "metrics", None)
         ttft = None
         tpot = None
         tps = None
