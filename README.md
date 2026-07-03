@@ -75,8 +75,12 @@ The platform exports detailed metrics for monitoring LLM performance:
 - `requests_total`: Total inference requests.
 - `request_latency_seconds`: Histogram of end-to-end request latency.
 - `inflight_requests`: Number of requests currently being processed.
-- `generated_tokens`: Histogram of tokens generated per request.
-- `prompt_length_chars`: Distribution of input prompt sizes.
+- `prompt_length_chars`: Distribution of input prompt sizes (characters).
+- `prompt_tokens`: Histogram of actual token counts in the input prompt.
+- `completion_tokens`: Histogram of actual token counts in the generated response.
+- `request_ttft_seconds`: Histogram of Time to First Token (TTFT).
+- `request_tpot_seconds`: Histogram of Time per Output Token (TPOT).
+- `tokens_per_second_histogram`: Histogram tracking generation throughput distribution (TPS).
 
 Useful queries can be found in [monitoring/queries.md](monitoring/queries.md).
 
