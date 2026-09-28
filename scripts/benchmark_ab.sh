@@ -12,6 +12,24 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Outer wall-clock cap on the WHOLE run, not just one sweep -- SWEEP_TIMEOUT
+# below only bounds a single load-test call. A slow model load, a stuck
+# server, or just misjudging REQUESTS can otherwise burn rented-GPU money for
+# however long nobody notices. Self-wraps under `timeout` on first invocation
+# so this applies whether it's run directly or from run_all.sh, without the
+# caller having to remember to wrap it themselves.
+TOTAL_TIMEOUT="${TOTAL_TIMEOUT:-2400}"
+if [ -z "${_BENCHMARK_AB_WRAPPED:-}" ]; then
+  export _BENCHMARK_AB_WRAPPED=1
+  exec timeout "$TOTAL_TIMEOUT" "$0" "$@"
+fi
+
+# If the outer timeout (or any other signal) kills this script, make sure the
+# uvicorn/vLLM child dies with it instead of being orphaned and left running
+# (and billing) with nothing left to stop it.
+cleanup() { [ -n "${SERVER_PID:-}" ] && kill "$SERVER_PID" 2>/dev/null || true; }
+trap cleanup EXIT INT TERM
+
 REQUESTS="${REQUESTS:-1000}"
 CONCURRENCIES=(${CONCURRENCIES:-16 32 64})
 PROMPT='{"prompt":"Explain GPUs simply"}'
