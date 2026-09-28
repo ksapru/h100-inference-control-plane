@@ -12,6 +12,7 @@ This repository provides a production-style inference stack for scaling modern L
 - [x] **Observability**: Prometheus-compatible metrics for TTFT, TPOT, latency, token throughput, prompt tokens, completion tokens, inflight requests, HTTP status codes, and SLO violations.
 - [x] **Monitoring**: VictoriaMetrics + Grafana dashboard support.
 - [x] **Automation**: One-command local deployment and load testing.
+- [x] **Benchmark**: default-vs-optimized A/B run completed on a real H100, 0 errors across 400 requests -- see [Results](#results-100-requests-per-point-qwenqwen36-35b-a3b-fp8-single-h100-sxm) below.
 - [ ] **Kubernetes**: Helm-based monitoring setup in progress; manifests not yet written (`kubernetes/` is currently a placeholder).
 - [ ] **Grafana dashboards**: not yet built (`monitoring/dashboards/` is currently a placeholder).
 
@@ -26,10 +27,21 @@ This repository provides a production-style inference stack for scaling modern L
 | `enable_prefix_caching` | off | on |
 | CUDA graphs (`enforce_eager`) | off (eager) | on |
 
-`scripts/benchmark_ab.sh` runs both configurations in turn on a single NVIDIA H100. For each config it starts the server once, then load-tests it with `hey` at **every concurrency level in `CONCURRENCIES` (default: 16, 32, 64)** — both configs hit the same concurrency levels, so the comparison isolates the effect of the config change rather than also varying load between rows. Raw output is saved per (config, concurrency) pair, e.g. `results_default_c16.txt`, `results_optimized_c64.txt`. **Those files are the source of truth for any numbers in this README.**
+`scripts/benchmark_ab.sh` runs both configurations in turn on a single NVIDIA H100. For each config it starts the server once, then load-tests it with `scripts/load_test.py` at **every concurrency level in `CONCURRENCIES`** — both configs hit the same concurrency levels, so the comparison isolates the effect of the config change rather than also varying load between rows. Raw output is saved per (config, concurrency) pair. **The `results_*.txt` files in this repo are the source of truth for the numbers below** — every one of them was produced by an actual run, not estimated.
+
+### Results (100 requests per point, `Qwen/Qwen3.6-35B-A3B-FP8`, single H100 SXM)
+
+| Config | Concurrency | Throughput | p50 latency | p99 latency | Errors |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| `default` | 16 | 0.39 req/s | 38.36s | 42.66s | 0/100 |
+| `default` | 64 | 1.10 req/s | 45.06s | 46.48s | 0/100 |
+| `optimized` | 16 | 3.62 req/s | 4.20s | 4.46s | 0/100 |
+| `optimized` | 64 | 8.48 req/s | 6.04s | 6.75s | 0/100 |
+
+Raw evidence: [`results_default_c16.txt`](results_default_c16.txt), [`results_default_c64.txt`](results_default_c64.txt), [`results_optimized_c16.txt`](results_optimized_c16.txt), [`results_optimized_c64.txt`](results_optimized_c64.txt), and the corresponding `server_*.log` files.
 
 > [!NOTE]
-> Not yet run. The specific throughput/latency numbers previously in this section, and the mismatched concurrency levels (16 for one row, 64 for the other) they were shown at, were not backed by a run this repo could reproduce — the code only ever supported one hardcoded config, and the load test script only ever ran once, at concurrency 64. Both gaps are now fixed (the `VLLM_CONFIG` toggle above, and the concurrency sweep in `benchmark_ab.sh`); this section stays a placeholder until the script has actually been run and its `results_*.txt` output committed.
+> **Identical-prompt caveat.** `load_test.py` sends the same prompt ("Explain GPUs simply") for every request in a sweep. With `enable_prefix_caching` on, every request after the first hits a fully cached prefix — a best-case scenario, not representative of production traffic with varied prompts. That's almost certainly most of why `optimized` measures ~9x faster here: real, but an upper bound, not a number to quote as "typical." A follow-up with varied prompts per request would isolate how much of the gain is prefix-cache-specific versus the chunked-prefill/CUDA-graph/memory-utilization changes alone.
 
 ---
 
@@ -78,7 +90,7 @@ SLO violations are tracked as the percentage of requests exceeding the latency t
 | Hardware | NVIDIA H100 SXM (80GB HBM3) |
 | API Layer | FastAPI (Asynchronous Gateway) |
 | Monitoring | VictoriaMetrics + Grafana |
-| Load Testing | `hey` closed-loop concurrent request sweeps (identical payloads with prefix caching enabled) |
-| Workload Spec | Mixed prompts (avg. input length: 60 tokens / 256 chars, max output tokens: 512) |
+| Load Testing | `scripts/load_test.py` (asyncio + aiohttp) closed-loop concurrent request sweeps |
+| Workload Spec | Identical prompt per sweep ("Explain GPUs simply", ~24 chars / prefix-cacheable), max output tokens: 512 -- see the identical-prompt caveat above |
 | SLO Target | Request latency < 2s |
 | Metrics Source | Server-side telemetry observed directly from vLLM `RequestMetrics` |

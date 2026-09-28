@@ -1,0 +1,18 @@
+Load test summary
+------------------
+  Requests:            100
+  Concurrency:         64
+  Total time:          11.792 secs
+  Requests/sec:        8.4804
+
+  Successful (200):    100
+  Errors:              0
+  Error rate:          0.00%
+
+Latency distribution (seconds):
+  50% in 6.0439 secs
+  90% in 6.7527 secs
+  95% in 6.7533 secs
+  99% in 6.7537 secs
+  min in 0.1209 secs
+  max in 6.7539 secs
