@@ -24,11 +24,27 @@ if [ -z "${_BENCHMARK_AB_WRAPPED:-}" ]; then
   exec timeout "$TOTAL_TIMEOUT" "$0" "$@"
 fi
 
+# vLLM's AsyncLLMEngine runs its actual work in a separate `EngineCore`
+# subprocess that killing the uvicorn PID does NOT cascade-kill -- confirmed
+# the hard way: it survived every plain `kill $SERVER_PID` here and kept
+# holding ~70GB of VRAM, starving the next config's engine on startup. Always
+# kill it explicitly by pattern, then actually wait for the GPU to report
+# clear (killing a process doesn't instantly release its CUDA memory) before
+# treating the server as stopped.
+stop_server() {
+  kill "${SERVER_PID:-}" 2>/dev/null || true
+  pkill -9 -f 'EngineCore' 2>/dev/null || true
+  for _ in $(seq 1 30); do
+    [ -z "$(nvidia-smi --query-compute-apps=pid --format=csv,noheader 2>/dev/null)" ] && return 0
+    sleep 2
+  done
+  echo "WARNING: GPU still reports compute processes after stop_server" >&2
+}
+
 # If the outer timeout (or any other signal) kills this script, make sure the
-# uvicorn/vLLM child dies with it instead of being orphaned and left running
-# (and billing) with nothing left to stop it.
-cleanup() { [ -n "${SERVER_PID:-}" ] && kill "$SERVER_PID" 2>/dev/null || true; }
-trap cleanup EXIT INT TERM
+# server (and its EngineCore child) dies with it instead of being orphaned
+# and left running -- and billing -- with nothing left to stop it.
+trap stop_server EXIT INT TERM
 
 REQUESTS="${REQUESTS:-1000}"
 CONCURRENCIES=(${CONCURRENCIES:-16 32 64})
@@ -65,7 +81,7 @@ for CONFIG in "${CONFIGS[@]}"; do
   done
   if [ "$READY" -ne 1 ]; then
     echo "Server did not become ready in time; see server_${CONFIG}.log" >&2
-    kill "$SERVER_PID" 2>/dev/null || true
+    stop_server
     exit 1
   fi
 
@@ -76,16 +92,14 @@ for CONFIG in "${CONFIGS[@]}"; do
       http://localhost:$PORT/generate > "results_${CONFIG}_c${CONCURRENCY}.txt"; then
       echo "Sweep exceeded ${SWEEP_TIMEOUT}s or failed; aborting to avoid burning more GPU time." >&2
       echo "Partial output (if any) is in results_${CONFIG}_c${CONCURRENCY}.txt" >&2
-      kill "$SERVER_PID" 2>/dev/null || true
+      stop_server
       exit 1
     fi
     echo "Saved results_${CONFIG}_c${CONCURRENCY}.txt"
   done
 
   echo "===== Stopping server ====="
-  kill "$SERVER_PID"
-  wait "$SERVER_PID" 2>/dev/null || true
-  sleep 5
+  stop_server
 done
 
 echo ""
