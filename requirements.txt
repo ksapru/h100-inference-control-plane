@@ -1,0 +1,4 @@
+vllm
+fastapi
+uvicorn[standard]
+prometheus_client

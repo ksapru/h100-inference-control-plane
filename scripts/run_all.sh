@@ -44,19 +44,14 @@ while true; do
 done
 ' > ingest.log 2>&1 &
 
-echo "===== STEP 8: Install load tester ====="
-
-go install github.com/rakyll/hey@latest
-export PATH=$PATH:$(go env GOPATH)/bin
-
+# STEP 4 already started a server on the default VLLM_CONFIG env; stop it,
+# benchmark_ab.sh manages starting/stopping the server for each config itself.
+pkill -f "uvicorn app.app:app" || true
 sleep 2
 
-echo "===== STEP 9: Run load test ====="
+echo "===== STEP 8/9: Run default-vs-optimized A/B benchmark ====="
 
-hey -n 1000 -c 64 -m POST \
-  -H "Content-Type: application/json" \
-  -d '{"prompt":"Explain GPUs simply"}' \
-  http://localhost:8000/generate > results.txt
+bash scripts/benchmark_ab.sh
 
 echo "===== STEP 10: Query metrics ====="
 

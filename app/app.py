@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.responses import Response, JSONResponse
 from vllm import SamplingParams
@@ -69,14 +71,42 @@ TOKENS_PER_SECOND_HIST = prom.Histogram(
     buckets=(5, 10, 20, 50, 100, 150, 200)
 )
 
-print("Loading Qwen3.6-35B-A3B (FP8 Quantized)...")
-engine_args = AsyncEngineArgs(
+# VLLM_CONFIG selects which engine config this process serves. Set by the
+# benchmark script (scripts/benchmark_ab.sh) to actually produce the two
+# rows in the README's comparison table, instead of always serving one config.
+#   default:   no chunked prefill, no prefix caching, CUDA graphs off (eager mode)
+#   optimized: chunked prefill + prefix caching on, CUDA graphs on (default vLLM behavior)
+CONFIG_NAME = os.environ.get("VLLM_CONFIG", "optimized")
+
+BASE_ARGS = dict(
     model="Qwen/Qwen3.6-35B-A3B-FP8",
     quantization="fp8",
     tensor_parallel_size=1,
-    gpu_memory_utilization=0.90,
-    max_model_len=4096
+    max_model_len=4096,
 )
+
+CONFIGS = {
+    "default": dict(
+        **BASE_ARGS,
+        gpu_memory_utilization=0.85,
+        enable_chunked_prefill=False,
+        enable_prefix_caching=False,
+        enforce_eager=True,  # disables CUDA graph capture
+    ),
+    "optimized": dict(
+        **BASE_ARGS,
+        gpu_memory_utilization=0.90,
+        enable_chunked_prefill=True,
+        enable_prefix_caching=True,
+        enforce_eager=False,  # CUDA graphs on
+    ),
+}
+
+if CONFIG_NAME not in CONFIGS:
+    raise ValueError(f"VLLM_CONFIG={CONFIG_NAME!r} is not one of {list(CONFIGS)}")
+
+print(f"Loading Qwen3.6-35B-A3B (FP8 Quantized) with VLLM_CONFIG={CONFIG_NAME!r}...")
+engine_args = AsyncEngineArgs(**CONFIGS[CONFIG_NAME])
 engine = AsyncLLMEngine.from_engine_args(engine_args)
 
 print("Model loaded")
@@ -181,6 +211,6 @@ async def metrics():
 @app.get("/")
 async def root():
     HTTP_REQUESTS.labels(method="GET", status_code="200").inc()
-    return {"status": "ok"}
+    return {"status": "ok", "vllm_config": CONFIG_NAME}
 
 
